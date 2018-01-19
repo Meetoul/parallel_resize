@@ -23,7 +23,7 @@ void mt_resize(cv::Mat &src, cv::Mat &dst, double scaleFactor, int threadNum = 0
     auto start = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < threadNum; i++)
     {
-        futures.emplace_back(std::async(std::launch::async, my_resize, &src, &dst, partHeight * i, partHeight, scaleFactor));
+        futures.emplace_back(std::async(my_resize, &src, &dst, partHeight * i, partHeight, scaleFactor));
     }
     for (auto &f : futures)
     {
@@ -37,7 +37,7 @@ int main(int argc, char **argv)
 {
     if (argc != 4)
     {
-        printf("Invalid parameters");
+        printf("Usage is: ./Resizer [filename] [scale factor] [number of threads]");
         return -1;
     }
     std::string imgName = argv[1];
