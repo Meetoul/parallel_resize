@@ -6,7 +6,7 @@
 #include <vector>
 #include <future>
 
-void my_resize(cv::Mat *src, cv::Mat *dst, int y, int h, double scaleFactor)
+void resize_wrapper(cv::Mat *src, cv::Mat *dst, int y, int h, double scaleFactor)
 {
     int dst_y = y * scaleFactor;
     int dst_h = h * scaleFactor;
@@ -23,7 +23,7 @@ void mt_resize(cv::Mat &src, cv::Mat &dst, double scaleFactor, int threadNum = 0
     auto start = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < threadNum; i++)
     {
-        futures.emplace_back(std::async(my_resize, &src, &dst, partHeight * i, partHeight, scaleFactor));
+        futures.emplace_back(std::async(resize_wrapper, &src, &dst, partHeight * i, partHeight, scaleFactor));
     }
     for (auto &f : futures)
     {
@@ -42,13 +42,13 @@ int main(int argc, char **argv)
     }
     std::string imgName = argv[1];
     double scaleFactor = std::stod(argv[2]);
-    int thread_num = std::stoi(argv[3]);
+    int threadNum = std::stoi(argv[3]);
 
     cv::Mat src = cv::imread(imgName.c_str(), CV_LOAD_IMAGE_COLOR);
     cv::Mat dst;
 
     auto begin = std::chrono::high_resolution_clock::now();
-    mt_resize(src, dst, scaleFactor, thread_num);
+    mt_resize(src, dst, scaleFactor, threadNum);
     auto end = std::chrono::high_resolution_clock::now();
     std::cout << "Multithread resize time: "
               << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << std::endl;
