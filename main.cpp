@@ -1,36 +1,17 @@
-#include <opencv2/opencv.hpp>
 #include <string>
 #include <chrono>
 #include <iostream>
-#include <thread>
+#include <iterator>
 #include <vector>
-#include <future>
+#include <fstream>
+#include "MResizer.hpp"
 
-void resize_wrapper(cv::Mat *src, cv::Mat *dst, int y, int h, double scaleFactor)
+std::vector<char> read_raw(std::string &filename)
 {
-    int dst_y = y * scaleFactor;
-    int dst_h = h * scaleFactor;
-    cv::resize((*src)(cv::Rect{0, y, src->cols, h}), (*dst)(cv::Rect{0, dst_y, dst->cols, dst_h}), cv::Size(), scaleFactor, scaleFactor);
-}
-
-void mt_resize(cv::Mat &src, cv::Mat &dst, double scaleFactor, int threadNum = 0)
-{
-    if (threadNum == 0)
-        threadNum = std::thread::hardware_concurrency();
-    int partHeight = src.rows / threadNum;
-    std::vector<std::future<void>> futures;
-    dst = cv::Mat(cv::Size(src.cols * scaleFactor, src.rows * scaleFactor), CV_8UC3, cv::Scalar(0, 0, 0));
-    auto start = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < threadNum; i++)
-    {
-        futures.emplace_back(std::async(resize_wrapper, &src, &dst, partHeight * i, partHeight, scaleFactor));
-    }
-    for (auto &f : futures)
-    {
-        f.get();
-    }
-    auto end = std::chrono::high_resolution_clock::now();
-    std::cout << "Only resize time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "\n";
+    std::ifstream ifs(filename, std::ios::binary);
+    std::vector<char> result{std::istreambuf_iterator<char>(ifs),
+                             std::istreambuf_iterator<char>()};
+    return result;
 }
 
 int main(int argc, char **argv)
@@ -43,15 +24,17 @@ int main(int argc, char **argv)
     std::string imgName = argv[1];
     double scaleFactor = std::stod(argv[2]);
     int threadNum = std::stoi(argv[3]);
-
-    cv::Mat src = cv::imread(imgName.c_str(), CV_LOAD_IMAGE_COLOR);
-    cv::Mat dst;
-
+    auto srcRaw = read_raw(imgName);
+    std::vector<char> dstRaw;
     auto begin = std::chrono::high_resolution_clock::now();
-    mt_resize(src, dst, scaleFactor, threadNum);
+    resize(srcRaw, dstRaw, scaleFactor, threadNum);
     auto end = std::chrono::high_resolution_clock::now();
     std::cout << "Multithread resize time: "
               << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << std::endl;
-    cv::imwrite("resullt.jpg", dst);
+    std::ofstream fout("result_new.jpg", std::ios::out | std::ios::binary);
+    std::ostream_iterator<char> ofit(fout);
+    std::copy(dstRaw.begin(), dstRaw.end(), ofit);
+    size_t rawSize = dstRaw.size();
+
     return 0;
 }
